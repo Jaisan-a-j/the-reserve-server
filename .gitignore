@@ -1,0 +1,34 @@
+# --- SENSITIVE DATA (CRITICAL) ---
+.env
+.env.local
+.env.test
+*.pem
+*.key
+
+# --- DEPENDENCIES ---
+# Never push node_modules; they are easily re-installed via npm install
+node_modules/
+jspm_packages/
+
+# --- COMPILED CODE ---
+# If you use TypeScript, hide the output folder
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# --- LOGS ---
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- OPERATING SYSTEM FILES ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- TESTING ---
+coverage/
