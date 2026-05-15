@@ -3,6 +3,7 @@ import {
   registerUser,
   loginUser,
   getCurrentUser,
+  googleLogin,
 } from "../controllers/authController";
 
 import protect from "../middleware/authMiddleware";
@@ -12,5 +13,6 @@ const router = express.Router();
 router.post("/register", registerUser);
 router.post("/login", loginUser);
 router.post("/user", protect, getCurrentUser);
+router.post("/google", googleLogin);
 
 export default router;

@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import User from "../models/User";
 import generateToken from "../utils/generateToken";
 import type { AuthRequest } from "../middleware/authMiddleware";
+import { OAuth2Client } from "google-auth-library";
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export const registerUser = async (req: Request, res: Response) => {
   try {
@@ -93,4 +95,53 @@ export const loginUser = async (req: Request, res: Response) => {
 
 export const getCurrentUser = async (req: AuthRequest, res: Response) => {
   res.status(200).json(req.user);
+};
+
+export const googleLogin = async (req: any, res: any) => {
+  try {
+    const { credential } = req.body;
+
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+
+    if (!payload) {
+      return res.status(400).json({
+        message: "Invalid Google token",
+      });
+    }
+
+    const { email, sub: googleId, name, picture } = payload;
+
+    if (!email) {
+      return res.status(400).json({ message: "Invalid Google token" });
+    }
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = await User.create({
+        fullName: name,
+        email,
+        googleId,
+        authProvider: "google",
+      });
+    }
+
+    res.status(201).json({
+      message: "User registered successfully",
+      token: generateToken(user._id.toString()),
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Google login failed" });
+  }
 };
