@@ -18,7 +18,7 @@ jobs:
           node-version: "20"
           cache: "npm"
           # Points to the package-lock inside your backend folder
-          cache-dependency-path: "./backend/package-lock.json"
+          cache-dependency-path: "./package-lock.json"
 
       # --- PHASE 2: DOCKER BUILD & PUSH ---
       - name: Set up Docker Buildx
@@ -33,8 +33,8 @@ jobs:
       - name: Build and Push Backend Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: ./backend # Compiles everything inside your backend subfolder
-          file: ./backend/Dockerfile # Targets your backend Dockerfile
+          context: . # Compiles everything inside your backend subfolder
+          file: ./Dockerfile # Targets your backend Dockerfile
           push: true
           tags: |
             jaisanaj/the-reserve-backend:latest
