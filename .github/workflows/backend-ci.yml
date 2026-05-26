@@ -1,4 +1,4 @@
-name: Backend Docker CI/CD Pipeline
+name: Backend Docker CI/CD
 
 on:
   push:
