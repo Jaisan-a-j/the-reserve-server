@@ -22,28 +22,39 @@ export const registerUser = async (req: Request, res: Response) => {
     const existingUser = await User.findOne({ email: normalizedEmail });
 
     if (existingUser) {
-      return res.status(400).json({
-        message: "User already exists",
-      });
+      if (existingUser.isVerified) {
+        return res.status(400).json({
+          message: "User already exists",
+        });
+      } else {
+        await User.deleteOne({ _id: existingUser._id });
+      }
     }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
+
     const user = await User.create({
       fullName,
       email: normalizedEmail,
       password: hashedPassword,
+      isVerified: false,
+      otp,
+      otpExpires,
     });
 
-    res.status(201).json({
-      message: "User registered successfully",
-      token: generateToken(user._id.toString()),
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-      },
+    await sendEmail(
+      normalizedEmail,
+      "Verify Your Account Creation",
+      `Hello ${fullName},<br><br>Your 6-digit registration confirmation passcode is:<br><b style="font-size: 24px; letter-spacing: 2px; color: #1e3a8a;">${otp}</b><br><br>This token will expire in 5 minutes.`,
+    );
+
+    return res.status(200).json({
+      message:
+        "Registration pending. A 6-digit code has been dispatched to your email inbox.",
     });
   } catch (error) {
     if (error instanceof Error) {
@@ -53,6 +64,50 @@ export const registerUser = async (req: Request, res: Response) => {
         message: "Something went wrong",
       });
     }
+  }
+};
+
+export const verifyOtp = async (req: Request, res: Response) => {
+  try {
+    const { email, otp } = req.body;
+    const normalizedEmail =
+      typeof email === "string" ? email.toLowerCase().trim() : email;
+
+    if (!normalizedEmail || !otp) {
+      return res
+        .status(400)
+        .json({ message: "Email and confirmation code are required fields." });
+    }
+
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    if (user.otp !== otp || !user.otpExpires || new Date() > user.otpExpires) {
+      return res
+        .status(400)
+        .json({ message: "Invalid or expired verification code." });
+    }
+    user.isVerified = true;
+    user.otp = null;
+    user.otpExpires = null;
+
+    user.set("createdAt", undefined);
+    await user.save();
+
+    return res.status(200).json({
+      message: "Account successfully verified! You are now logged in.",
+      token: generateToken(user._id.toString()),
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Server verification error." });
   }
 };
 
@@ -67,6 +122,12 @@ export const loginUser = async (req: Request, res: Response) => {
     if (!user || !user.password) {
       return res.status(400).json({
         message: "Invalid credentials",
+      });
+    }
+
+    if (!user.isVerified) {
+      return res.status(400).json({
+        message: "Please verify your email before logging in.",
       });
     }
 
