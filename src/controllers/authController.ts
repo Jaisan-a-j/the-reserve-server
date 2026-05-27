@@ -4,19 +4,22 @@ import User from "../models/User";
 import generateToken from "../utils/generateToken";
 import type { AuthRequest } from "../middleware/authMiddleware";
 import { OAuth2Client } from "google-auth-library";
+import { sendEmail } from "../utils/sendEmail";
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export const registerUser = async (req: Request, res: Response) => {
   try {
     const { fullName, email, password } = req.body;
+    const normalizedEmail =
+      typeof email === "string" ? email.toLowerCase().trim() : email;
 
-    if (!fullName || !email || !password) {
+    if (!fullName || !normalizedEmail || !password) {
       return res.status(400).json({
         message: "All fields are required",
       });
     }
 
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: normalizedEmail });
 
     if (existingUser) {
       return res.status(400).json({
@@ -29,7 +32,7 @@ export const registerUser = async (req: Request, res: Response) => {
 
     const user = await User.create({
       fullName,
-      email,
+      email: normalizedEmail,
       password: hashedPassword,
     });
 
@@ -56,8 +59,10 @@ export const registerUser = async (req: Request, res: Response) => {
 export const loginUser = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail =
+      typeof email === "string" ? email.toLowerCase().trim() : email;
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: normalizedEmail });
 
     if (!user || !user.password) {
       return res.status(400).json({
@@ -115,17 +120,19 @@ export const googleLogin = async (req: any, res: any) => {
     }
 
     const { email, sub: googleId, name, picture } = payload;
+    const normalizedEmail =
+      typeof email === "string" ? email.toLowerCase().trim() : email;
 
-    if (!email) {
+    if (!normalizedEmail) {
       return res.status(400).json({ message: "Invalid Google token" });
     }
 
-    let user = await User.findOne({ email });
+    let user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
       user = await User.create({
         fullName: name,
-        email,
+        email: normalizedEmail,
         googleId,
         authProvider: "google",
       });
