@@ -54,3 +54,28 @@ export const getMyBookings = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({ message: "Could not fetch bookings" });
   }
 };
+
+export const getBookedTimeSlots = async (req: AuthRequest, res: Response) => {
+  try {
+    const { date } = req.query;
+
+    if (!date) {
+      return res.status(400).json({ message: "Date is required" });
+    }
+
+    const bookings = await Booking.find({
+      date: date as string,
+      status: { $in: ["confirmed", "pending"] },
+    }).select("time");
+
+    const bookedTimeSlots = bookings.map((booking) => booking.time);
+
+    return res.status(200).json({ bookedTimeSlots });
+  } catch (error) {
+    if (error instanceof Error) {
+      return res.status(500).json({ message: error.message });
+    }
+
+    return res.status(500).json({ message: "Could not fetch booked slots" });
+  }
+};
