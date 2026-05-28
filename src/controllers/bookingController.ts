@@ -16,6 +16,30 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
         .json({ message: "Phone, date and time are required" });
     }
 
+    const userBookings = await Booking.find({
+      user: req.user._id,
+      status: { $in: ["pending", "confirmed"] },
+    });
+
+    if (userBookings.length >= 2) {
+      return res.status(400).json({
+        message: "You can only book two slots total.",
+        bookings: userBookings,
+      });
+    }
+
+    const sameDateBooking = userBookings.find(
+      (booking) => booking.date === date,
+    );
+
+    if (sameDateBooking) {
+      return res.status(400).json({
+        message:
+          "You already have a booking for this date. Please choose another day.",
+        booking: sameDateBooking,
+      });
+    }
+
     const booking = await Booking.create({
       user: req.user._id,
       phone,
@@ -41,7 +65,10 @@ export const getMyBookings = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ message: "Not authorized" });
     }
 
-    const bookings = await Booking.find({ user: req.user._id }).sort({
+    const bookings = await Booking.find({
+      user: req.user._id,
+      status: { $in: ["pending", "confirmed"] },
+    }).sort({
       createdAt: -1,
     });
 
@@ -52,6 +79,38 @@ export const getMyBookings = async (req: AuthRequest, res: Response) => {
     }
 
     return res.status(500).json({ message: "Could not fetch bookings" });
+  }
+};
+
+export const cancelBooking = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user?._id) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    const booking = await Booking.findOne({
+      _id: req.params.id,
+      user: req.user._id,
+      status: { $in: ["pending", "confirmed"] },
+    });
+
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found." });
+    }
+
+    booking.status = "cancelled";
+    await booking.save();
+
+    return res.status(200).json({
+      booking,
+      message: "Booking cancelled successfully.",
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      return res.status(500).json({ message: error.message });
+    }
+
+    return res.status(500).json({ message: "Could not cancel booking" });
   }
 };
 
