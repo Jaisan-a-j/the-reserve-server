@@ -1,15 +1,15 @@
 import nodemailer from "nodemailer";
-import SMTPTransport from "nodemailer/lib/smtp-transport/index.js";
 
 export const sendEmail = async (
   to: string,
   subject: string,
   text: string,
 ): Promise<void> => {
-  const mailOptions: SMTPTransport.Options = {
+  const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
+    port: 587,
+    secure: false,
+
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASSWORD,
@@ -19,10 +19,12 @@ export const sendEmail = async (
     greetingTimeout: 10000,
     socketTimeout: 10000,
 
-    ...({ family: 4 } as any),
-  };
+    requireTLS: true,
 
-  const transporter = nodemailer.createTransport(mailOptions);
+    tls: {
+      rejectUnauthorized: false,
+    },
+  });
 
   await transporter.sendMail({
     from: `"The Reserve" <${process.env.EMAIL_USER}>`,
