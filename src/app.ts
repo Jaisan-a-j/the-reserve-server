@@ -3,6 +3,7 @@ import cors from "cors";
 import authRoutes from "./routes/userRoute";
 import bookingRoutes from "./routes/bookingRoute";
 import foodRoutes from "./routes/foodRoutes";
+import cartRoutes from "./routes/cartRoute";
 
 const app = express();
 
@@ -12,4 +13,5 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/food", foodRoutes);
+app.use("/api/cart", cartRoutes);
 export default app;
