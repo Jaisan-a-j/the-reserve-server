@@ -101,6 +101,15 @@ export const updateCartItemQuantity = async (
       });
     }
 
+    const food = await Food.findById(foodId);
+
+    if (!food) {
+      return res.status(404).json({
+        success: false,
+        message: "Food item not found.",
+      });
+    }
+
     const user = await User.findById(req.user._id);
 
     if (!user) {
@@ -114,14 +123,15 @@ export const updateCartItemQuantity = async (
       (item) => item.food.toString() === foodId,
     );
 
-    if (!cartItem) {
-      return res.status(404).json({
-        success: false,
-        message: "Cart item not found.",
+    if (cartItem) {
+      cartItem.quantity = Number(quantity);
+    } else {
+      user.cart.push({
+        food: food._id,
+        quantity: Number(quantity),
       });
     }
 
-    cartItem.quantity = Number(quantity);
     await user.save();
 
     const cart = await getPopulatedCart(user._id.toString());
