@@ -1,6 +1,7 @@
 import type { Response } from "express";
 import type { AuthRequest } from "../middleware/authMiddleware";
 import Booking from "../models/Booking";
+import { sendEmail } from "../utils/sendEmail";
 
 export const createBooking = async (req: AuthRequest, res: Response) => {
   try {
@@ -9,6 +10,8 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
     if (!req.user?._id) {
       return res.status(401).json({ message: "Not authorized" });
     }
+
+    const { email, fullName } = req.user;
 
     if (!phone || !date || !time) {
       return res
@@ -48,6 +51,12 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
       message,
       status: "pending",
     });
+
+    await sendEmail(
+      email,
+      "Table Booking Confirmation",
+      `Hello ${fullName},<br><br> Your booking at The Reserve is confirmed for ${date} at ${time}. Thank you!`,
+    );
 
     return res.status(201).json({ booking });
   } catch (error) {
