@@ -203,3 +203,23 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({ message: "Order could not be created." });
   }
 };
+
+export const getMyOrders = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user?._id) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    const orders = await Order.find({ user: req.user._id }).sort({
+      createdAt: -1,
+    });
+
+    return res.status(200).json({ orders });
+  } catch (error) {
+    if (error instanceof Error) {
+      return res.status(500).json({ message: error.message });
+    }
+
+    return res.status(500).json({ message: "Could not fetch orders." });
+  }
+};
