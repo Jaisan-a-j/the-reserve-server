@@ -127,7 +127,7 @@ export const loginUser = async (req: Request, res: Response) => {
 
     if (!user.isVerified) {
       return res.status(400).json({
-        message: "Please verify your email before logging in.",
+        message: "email is not verified Register again.",
       });
     }
 
