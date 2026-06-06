@@ -1,17 +1,14 @@
 import nodemailer from "nodemailer";
-import SMTPTransport from "nodemailer/lib/smtp-transport";
-import { ConnectionOptions } from "tls";
+import dns from "dns";
 
 export const sendEmail = async (
   to: string,
   subject: string,
   text: string,
 ): Promise<void> => {
-  type CustomSMTPOptions = SMTPTransport.Options & {
-    tls?: ConnectionOptions & { family?: number };
-  };
+  dns.setDefaultResultOrder("ipv4first");
 
-  const mailOptions: CustomSMTPOptions = {
+  const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
     secure: false,
@@ -21,24 +18,26 @@ export const sendEmail = async (
       pass: process.env.EMAIL_PASSWORD,
     },
 
+    requireTLS: true,
+
     connectionTimeout: 10000,
     greetingTimeout: 10000,
     socketTimeout: 10000,
 
-    requireTLS: true,
-
     tls: {
       rejectUnauthorized: false,
-      family: 4,
     },
-  };
+  });
 
-  const transporter = nodemailer.createTransport(mailOptions as any);
+  await transporter.verify();
 
   await transporter.sendMail({
     from: `"The Reserve" <${process.env.EMAIL_USER}>`,
     to,
     subject,
-    html: `<h3>Welcome to The Reserve!</h3><p>${text}</p>`,
+    html: `
+      <h3>Welcome to The Reserve!</h3>
+      <p>${text}</p>
+    `,
   });
 };
