@@ -1,44 +1,46 @@
-import nodemailer from "nodemailer";
-import dns from "dns";
-import net from "net";
-
 export const sendEmail = async (
   to: string,
   subject: string,
-  text: string,
+  htmlContent: string,
 ): Promise<void> => {
-  const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD,
-    },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 10000,
-    requireTLS: true,
-    tls: {
-      rejectUnauthorized: false,
-    },
-    lookup: (
-      hostname: string,
-      options: dns.LookupOptions & { all?: boolean },
-      callback: (
-        err: NodeJS.ErrnoException | null,
-        address: string | dns.LookupAddress[],
-        family: number,
-      ) => void,
-    ) => {
-      dns.lookup(hostname, { ...options, family: 4 }, callback as any);
-    },
-  } as any);
+  try {
+    const payload = {
+      service_id: process.env.EMAILJS_SERVICE_ID,
+      template_id: process.env.EMAILJS_TEMPLATE_ID,
+      user_id: process.env.EMAILJS_PUBLIC_KEY,
+      accessToken: process.env.EMAILJS_PRIVATE_KEY,
+      template_params: {
+        to_email: to,
+        reply_to: process.env.EMAIL_USER,
+        message_content: htmlContent,
+      },
+    };
 
-  await transporter.sendMail({
-    from: `"The Reserve" <${process.env.EMAIL_USER}>`,
-    to,
-    subject,
-    html: `<h3>Welcome to The Reserve!</h3><p>${text}</p>`,
-  });
+    const response = await fetch(
+      "https://api.emailjs.com/api/v1.0/email/send",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      },
+    );
+
+    const resultText = await response.text();
+
+    if (!response.ok) {
+      throw new Error(
+        `EmailJS API responded with status ${response.status}: ${resultText}`,
+      );
+    }
+
+    console.log(
+      "✅ Email sent globally via native HTTP Fetch Bridge!",
+      resultText,
+    );
+  } catch (error) {
+    console.error("❌ Native HTTP Email Dispatch Failed:", error);
+    throw error;
+  }
 };
