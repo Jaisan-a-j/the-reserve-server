@@ -1,46 +1,35 @@
+import nodemailer from "nodemailer";
+
 export const sendEmail = async (
   to: string,
   subject: string,
-  htmlContent: string,
+  text: string,
 ): Promise<void> => {
-  try {
-    const payload = {
-      service_id: process.env.EMAILJS_SERVICE_ID,
-      template_id: process.env.EMAILJS_TEMPLATE_ID,
-      user_id: process.env.EMAILJS_PUBLIC_KEY,
-      accessToken: process.env.EMAILJS_PRIVATE_KEY,
-      template_params: {
-        to_email: to,
-        reply_to: process.env.EMAIL_USER,
-        message_content: htmlContent,
-      },
-    };
+  const transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
 
-    const response = await fetch(
-      "https://api.emailjs.com/api/v1.0/email/send",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      },
-    );
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD,
+    },
 
-    const resultText = await response.text();
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
 
-    if (!response.ok) {
-      throw new Error(
-        `EmailJS API responded with status ${response.status}: ${resultText}`,
-      );
-    }
+    requireTLS: true,
 
-    console.log(
-      "✅ Email sent globally via native HTTP Fetch Bridge!",
-      resultText,
-    );
-  } catch (error) {
-    console.error("❌ Native HTTP Email Dispatch Failed:", error);
-    throw error;
-  }
+    tls: {
+      rejectUnauthorized: false,
+    },
+  });
+
+  await transporter.sendMail({
+    from: `"The Reserve" <${process.env.EMAIL_USER}>`,
+    to,
+    subject,
+    html: `<h3>Welcome to The Reserve!</h3><p>${text}</p>`,
+  });
 };
