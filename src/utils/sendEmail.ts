@@ -1,35 +1,28 @@
-import nodemailer from "nodemailer";
+import Mailjet from "node-mailjet";
 
-export const sendEmail = async (
-  to: string,
-  subject: string,
-  text: string,
-): Promise<void> => {
-  const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
+const mailjet = Mailjet.apiConnect(
+  "b3b65c716bd542b2949d78c1fb705aed",
+  "e860d30cbbf965d5868cb88415f1d1ed",
+);
 
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD,
-    },
-
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 10000,
-
-    requireTLS: true,
-
-    tls: {
-      rejectUnauthorized: false,
-    },
+export const sendEmail = async () => {
+  const result = await mailjet.post("send", { version: "v3.1" }).request({
+    Messages: [
+      {
+        From: {
+          Email: "jaisanaj1999@gmail.com",
+          Name: "Test App",
+        },
+        To: [
+          {
+            Email: "bixifa1230@fanchatu.com",
+          },
+        ],
+        Subject: "Mailjet Test",
+        TextPart: "Mailjet is working!",
+      },
+    ],
   });
 
-  await transporter.sendMail({
-    from: `"The Reserve" <${process.env.EMAIL_USER}>`,
-    to,
-    subject,
-    html: `<h3>Welcome to The Reserve!</h3><p>${text}</p>`,
-  });
+  console.log(result.body);
 };
