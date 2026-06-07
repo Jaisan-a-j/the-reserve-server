@@ -48,7 +48,22 @@ export const registerUser = async (req: Request, res: Response) => {
     //   subject: "Welcome",
     //   htmlContent: "<h1>Hello</h1>",
     // });
-    await sendEmail();
+    try {
+      console.log("API KEY EXISTS:", !!process.env.MAILJET_API_KEY);
+      console.log("SECRET KEY EXISTS:", !!process.env.MAILJET_SECRET_KEY);
+
+      await sendEmail();
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("FULL ERROR:");
+      console.error(error);
+
+      res.status(500).json({
+        message: error.message,
+        stack: error.stack,
+      });
+    }
 
     const user = await User.create({
       fullName,
