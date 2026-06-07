@@ -51,6 +51,7 @@ export const registerUser = async (req: Request, res: Response) => {
     try {
       console.log("API KEY EXISTS:", !!process.env.MAILJET_API_KEY);
       console.log("SECRET KEY EXISTS:", !!process.env.MAILJET_SECRET_KEY);
+      console.log("Node version:", process.version);
 
       await sendEmail();
 
