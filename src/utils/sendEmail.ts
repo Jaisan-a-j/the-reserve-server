@@ -7,7 +7,7 @@ export const sendEmail = async (
 ): Promise<void> => {
   const resend = new Resend(process.env.RESEND_API_KEY);
   const response = await resend.emails.send({
-    from: "reservations@thereserve-restaurant.store",
+    from: "noreply@thereserve-restaurant.store",
     to,
     subject,
     html: `<h3>Welcome to The Reserve!</h3><p>${text}</p>`,
