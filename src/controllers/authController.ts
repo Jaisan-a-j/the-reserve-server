@@ -37,6 +37,12 @@ export const registerUser = async (req: Request, res: Response) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
 
+    await sendEmail(
+      normalizedEmail,
+      "Verify Your Account Creation",
+      `Hello ${fullName},<br><br>Your 6-digit registration confirmation passcode is:<br><b style="font-size: 24px; letter-spacing: 2px; color: #1e3a8a;">${otp}</b><br><br>This token will expire in 5 minutes.`,
+    );
+
     const user = await User.create({
       fullName,
       email: normalizedEmail,
@@ -45,12 +51,6 @@ export const registerUser = async (req: Request, res: Response) => {
       otp,
       otpExpires,
     });
-
-    await sendEmail(
-      normalizedEmail,
-      "Verify Your Account Creation",
-      `Hello ${fullName},<br><br>Your 6-digit registration confirmation passcode is:<br><b style="font-size: 24px; letter-spacing: 2px; color: #1e3a8a;">${otp}</b><br><br>This token will expire in 5 minutes.`,
-    );
 
     return res.status(200).json({
       message:
