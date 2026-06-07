@@ -52,11 +52,11 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
       status: "pending",
     });
 
-    await sendEmail(
-      email,
-      "Table Booking Confirmation",
-      `Hello ${fullName},<br><br> Your booking at The Reserve is confirmed for ${date} at ${time}. Thank you!`,
-    );
+    // await sendEmail(
+    //   email,
+    //   "Table Booking Confirmation",
+    //   `Hello ${fullName},<br><br> Your booking at The Reserve is confirmed for ${date} at ${time}. Thank you!`,
+    // );
 
     return res.status(201).json({ booking });
   } catch (error) {

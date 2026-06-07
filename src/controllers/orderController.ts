@@ -154,8 +154,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
       items,
       contact,
       fulfillment,
-      deliveryAddress:
-        fulfillment === "delivery" ? deliveryAddress : undefined,
+      deliveryAddress: fulfillment === "delivery" ? deliveryAddress : undefined,
       paymentMethod,
       subtotal,
       serviceFee,
@@ -172,11 +171,11 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
     let emailMessage: string | undefined;
 
     try {
-      await sendEmail(
-        contact.email,
-        "The Reserve Order Confirmation",
-        buildOrderEmail(order),
-      );
+      // await sendEmail(
+      //   contact.email,
+      //   "The Reserve Order Confirmation",
+      //   buildOrderEmail(order),
+      // );
       emailSent = true;
     } catch (emailError) {
       emailMessage =
