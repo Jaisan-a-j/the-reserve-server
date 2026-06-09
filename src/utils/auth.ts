@@ -1,4 +1,6 @@
 import generateToken from "./generateToken";
+import { AuthRequest } from "../middleware/authMiddleware";
+import type { Response } from "express";
 
 export const normalizeEmail = (email: string) => email.toLowerCase().trim();
 
@@ -15,3 +17,9 @@ export const generateAuthResponse = (user: any) => ({
     email: user.email,
   },
 });
+
+export const requireUser = (req: AuthRequest, res: Response) => {
+  if (!req.user?._id) {
+    return res.status(401).json({ message: "Not authorized" });
+  }
+};

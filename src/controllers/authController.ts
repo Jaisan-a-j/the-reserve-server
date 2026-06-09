@@ -149,44 +149,42 @@ export const getCurrentUser = async (req: AuthRequest, res: Response) => {
   res.status(200).json(req.user);
 };
 
-export const googleLogin = asyncHandler(
-  async (req: Request, res: Response): Promise<void> => {
-    const { credential } = req.body;
+export const googleLogin = asyncHandler(async (req: Request, res: Response) => {
+  const { credential } = req.body;
 
-    const ticket = await client.verifyIdToken({
-      idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID,
+  const ticket = await client.verifyIdToken({
+    idToken: credential,
+    audience: process.env.GOOGLE_CLIENT_ID,
+  });
+
+  const payload = ticket.getPayload();
+
+  if (!payload) {
+    throw new Error("Invalid Google token");
+  }
+
+  const { email, sub: googleId, name } = payload;
+
+  const normalizedEmail =
+    typeof email === "string" ? normalizeEmail(email) : email;
+
+  if (!normalizedEmail) {
+    throw new Error("Invalid Google token");
+  }
+
+  let user = await User.findOne({ email: normalizedEmail });
+
+  if (!user) {
+    user = await User.create({
+      fullName: name,
+      email: normalizedEmail,
+      googleId,
+      authProvider: "google",
     });
+  }
 
-    const payload = ticket.getPayload();
-
-    if (!payload) {
-      throw new Error("Invalid Google token");
-    }
-
-    const { email, sub: googleId, name } = payload;
-
-    const normalizedEmail =
-      typeof email === "string" ? normalizeEmail(email) : email;
-
-    if (!normalizedEmail) {
-      throw new Error("Invalid Google token");
-    }
-
-    let user = await User.findOne({ email: normalizedEmail });
-
-    if (!user) {
-      user = await User.create({
-        fullName: name,
-        email: normalizedEmail,
-        googleId,
-        authProvider: "google",
-      });
-    }
-
-    res.status(201).json({
-      message: "User registered successfully",
-      ...generateAuthResponse(user),
-    });
-  },
-);
+  res.status(201).json({
+    message: "User registered successfully",
+    ...generateAuthResponse(user),
+  });
+});

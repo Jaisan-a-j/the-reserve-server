@@ -1,22 +1,21 @@
 import type { Response } from "express";
+import asyncHandler from "express-async-handler";
 import type { AuthRequest } from "../middleware/authMiddleware";
 import Booking from "../models/Booking";
 import { sendEmail } from "../utils/sendEmail";
+import { requireUser } from "../utils/auth";
 
-export const createBooking = async (req: AuthRequest, res: Response) => {
-  try {
+export const createBooking = asyncHandler(
+  async (req: AuthRequest, res: Response) => {
     const { phone, date, time, message } = req.body;
 
-    if (!req.user?._id) {
-      return res.status(401).json({ message: "Not authorized" });
-    }
+    requireUser(req, res);
 
     const { email, fullName } = req.user;
 
     if (!phone || !date || !time) {
-      return res
-        .status(400)
-        .json({ message: "Phone, date and time are required" });
+      res.status(400).json({ message: "Phone, date and time are required" });
+      return;
     }
 
     const userBookings = await Booking.find({
@@ -25,10 +24,11 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
     });
 
     if (userBookings.length >= 2) {
-      return res.status(400).json({
+      res.status(400).json({
         message: "You can only book two slots total.",
         bookings: userBookings,
       });
+      return;
     }
 
     const sameDateBooking = userBookings.find(
@@ -36,11 +36,12 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
     );
 
     if (sameDateBooking) {
-      return res.status(400).json({
+      res.status(400).json({
         message:
           "You already have a booking for this date. Please choose another day.",
         booking: sameDateBooking,
       });
+      return;
     }
 
     const booking = await Booking.create({
@@ -58,22 +59,13 @@ export const createBooking = async (req: AuthRequest, res: Response) => {
     //   `Hello ${fullName},<br><br> Your booking at The Reserve is confirmed for ${date} at ${time}. Thank you!`,
     // );
 
-    return res.status(201).json({ booking });
-  } catch (error) {
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
+    res.status(201).json({ booking });
+  },
+);
 
-    return res.status(500).json({ message: "Booking could not be created" });
-  }
-};
-
-export const getMyBookings = async (req: AuthRequest, res: Response) => {
-  try {
-    if (!req.user?._id) {
-      return res.status(401).json({ message: "Not authorized" });
-    }
-
+export const getMyBookings = asyncHandler(
+  async (req: AuthRequest, res: Response) => {
+    requireUser(req, res);
     const bookings = await Booking.find({
       user: req.user._id,
       status: { $in: ["pending", "confirmed"] },
@@ -81,22 +73,13 @@ export const getMyBookings = async (req: AuthRequest, res: Response) => {
       createdAt: -1,
     });
 
-    return res.status(200).json({ bookings });
-  } catch (error) {
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
+    res.status(200).json({ bookings });
+  },
+);
 
-    return res.status(500).json({ message: "Could not fetch bookings" });
-  }
-};
-
-export const cancelBooking = async (req: AuthRequest, res: Response) => {
-  try {
-    if (!req.user?._id) {
-      return res.status(401).json({ message: "Not authorized" });
-    }
-
+export const cancelBooking = asyncHandler(
+  async (req: AuthRequest, res: Response) => {
+    requireUser(req, res);
     const booking = await Booking.findOne({
       _id: req.params.id,
       user: req.user._id,
@@ -104,31 +87,27 @@ export const cancelBooking = async (req: AuthRequest, res: Response) => {
     });
 
     if (!booking) {
-      return res.status(404).json({ message: "Booking not found." });
+      res.status(404).json({ message: "Booking not found." });
+      return;
     }
 
     booking.status = "cancelled";
     await booking.save();
 
-    return res.status(200).json({
+    res.status(200).json({
       booking,
       message: "Booking cancelled successfully.",
     });
-  } catch (error) {
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
+  },
+);
 
-    return res.status(500).json({ message: "Could not cancel booking" });
-  }
-};
-
-export const getBookedTimeSlots = async (req: AuthRequest, res: Response) => {
-  try {
+export const getBookedTimeSlots = asyncHandler(
+  async (req: AuthRequest, res: Response) => {
     const { date } = req.query;
 
     if (!date) {
-      return res.status(400).json({ message: "Date is required" });
+      res.status(400).json({ message: "Date is required" });
+      return;
     }
 
     const bookings = await Booking.find({
@@ -138,12 +117,6 @@ export const getBookedTimeSlots = async (req: AuthRequest, res: Response) => {
 
     const bookedTimeSlots = bookings.map((booking) => booking.time);
 
-    return res.status(200).json({ bookedTimeSlots });
-  } catch (error) {
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
-
-    return res.status(500).json({ message: "Could not fetch booked slots" });
-  }
-};
+    res.status(200).json({ bookedTimeSlots });
+  },
+);
