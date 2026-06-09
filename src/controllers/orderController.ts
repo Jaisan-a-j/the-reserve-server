@@ -35,7 +35,7 @@ type PopulatedCartItem = {
 
 const roundCurrency = (value: number) => Math.round(value * 100) / 100;
 
-const formatCurrency = (value: number) => `$${value.toFixed(2)}`;
+const fixCurrency = (value: number) => `$${value.toFixed(2)}`;
 
 const buildOrderEmail = (order: {
   _id: Types.ObjectId;
@@ -54,7 +54,7 @@ const buildOrderEmail = (order: {
   const itemRows = order.items
     .map(
       (item) =>
-        `${item.title} x ${item.quantity} - ${formatCurrency(
+        `${item.title} x ${item.quantity} - ${fixCurrency(
           item.price * item.quantity,
         )}`,
     )
@@ -71,11 +71,11 @@ const buildOrderEmail = (order: {
     <strong>Estimated time:</strong> ${eta}<br><br>
     <strong>Items</strong><br>
     ${itemRows}<br><br>
-    <strong>Subtotal:</strong> ${formatCurrency(order.subtotal)}<br>
-    <strong>Service fee:</strong> ${formatCurrency(order.serviceFee)}<br>
-    <strong>Delivery fee:</strong> ${formatCurrency(order.deliveryFee)}<br>
-    <strong>Tax:</strong> ${formatCurrency(order.tax)}<br>
-    <strong>Total:</strong> ${formatCurrency(order.total)}<br><br>
+    <strong>Subtotal:</strong> ${fixCurrency(order.subtotal)}<br>
+    <strong>Service fee:</strong> ${fixCurrency(order.serviceFee)}<br>
+    <strong>Delivery fee:</strong> ${fixCurrency(order.deliveryFee)}<br>
+    <strong>Tax:</strong> ${fixCurrency(order.tax)}<br>
+    <strong>Total:</strong> ${fixCurrency(order.total)}<br><br>
     We will notify you if anything changes.
   `;
 };
