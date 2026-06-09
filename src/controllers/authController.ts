@@ -5,13 +5,15 @@ import generateToken from "../utils/generateToken";
 import type { AuthRequest } from "../middleware/authMiddleware";
 import { OAuth2Client } from "google-auth-library";
 import { sendEmail } from "../utils/sendEmail";
+import { normalizeEmail } from "../utils/auth";
+import { generateAuthResponse } from "../utils/auth";
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export const registerUser = async (req: Request, res: Response) => {
   try {
     const { fullName, email, password } = req.body;
     const normalizedEmail =
-      typeof email === "string" ? email.toLowerCase().trim() : email;
+      typeof email === "string" ? normalizeEmail(email) : email;
 
     if (!fullName || !normalizedEmail || !password) {
       return res.status(400).json({
@@ -71,7 +73,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
   try {
     const { email, otp } = req.body;
     const normalizedEmail =
-      typeof email === "string" ? email.toLowerCase().trim() : email;
+      typeof email === "string" ? normalizeEmail(email) : email;
 
     if (!normalizedEmail || !otp) {
       return res
@@ -99,12 +101,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       message: "Account successfully verified! You are now logged in.",
-      token: generateToken(user._id.toString()),
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-      },
+      ...generateAuthResponse(user),
     });
   } catch (error) {
     return res.status(500).json({ message: "Server verification error." });
@@ -115,7 +112,7 @@ export const loginUser = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     const normalizedEmail =
-      typeof email === "string" ? email.toLowerCase().trim() : email;
+      typeof email === "string" ? normalizeEmail(email) : email;
 
     const user = await User.findOne({ email: normalizedEmail });
 
@@ -141,12 +138,7 @@ export const loginUser = async (req: Request, res: Response) => {
 
     res.status(200).json({
       message: "Login successful",
-      token: generateToken(user._id.toString()),
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-      },
+      ...generateAuthResponse(user),
     });
   } catch (error) {
     if (error instanceof Error) {
@@ -163,7 +155,7 @@ export const getCurrentUser = async (req: AuthRequest, res: Response) => {
   res.status(200).json(req.user);
 };
 
-export const googleLogin = async (req: any, res: any) => {
+export const googleLogin = async (req: Request, res: Response) => {
   try {
     const { credential } = req.body;
 
@@ -182,7 +174,7 @@ export const googleLogin = async (req: any, res: any) => {
 
     const { email, sub: googleId, name, picture } = payload;
     const normalizedEmail =
-      typeof email === "string" ? email.toLowerCase().trim() : email;
+      typeof email === "string" ? normalizeEmail(email) : email;
 
     if (!normalizedEmail) {
       return res.status(400).json({ message: "Invalid Google token" });
@@ -201,12 +193,7 @@ export const googleLogin = async (req: any, res: any) => {
 
     res.status(201).json({
       message: "User registered successfully",
-      token: generateToken(user._id.toString()),
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-      },
+      ...generateAuthResponse(user),
     });
   } catch (error) {
     console.error(error);

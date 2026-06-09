@@ -17,10 +17,8 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          # Points to the package-lock inside your backend folder
           cache-dependency-path: "./package-lock.json"
 
-      # --- PHASE 2: DOCKER BUILD & PUSH ---
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -33,14 +31,13 @@ jobs:
       - name: Build and Push Backend Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: . # Compiles everything inside your backend subfolder
-          file: ./Dockerfile # Targets your backend Dockerfile
+          context: .
+          file: ./Dockerfile
           push: true
           tags: |
             jaisanaj/the-reserve-backend:latest
             jaisanaj/the-reserve-backend:${{ github.sha }}
 
-      # --- PHASE 3: NOTIFY RENDER TO DEPLOY THE NEW BACKEND IMAGE ---
       - name: Trigger Render Deployment
         env:
           DEPLOY_URL: ${{ secrets.BACKEND_DEPLOY_HOOK }}
