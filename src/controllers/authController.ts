@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import asyncHandler from "express-async-handler";
 import bcrypt from "bcryptjs";
 import User from "../models/User";
 import generateToken from "../utils/generateToken";
@@ -9,28 +10,31 @@ import { normalizeEmail } from "../utils/auth";
 import { generateAuthResponse } from "../utils/auth";
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-export const registerUser = async (req: Request, res: Response) => {
-  try {
+export const registerUser = asyncHandler(
+  async (req: Request, res: Response) => {
     const { fullName, email, password } = req.body;
+
     const normalizedEmail =
       typeof email === "string" ? normalizeEmail(email) : email;
 
     if (!fullName || !normalizedEmail || !password) {
-      return res.status(400).json({
+      res.status(400).json({
         message: "All fields are required",
       });
+      return;
     }
 
     const existingUser = await User.findOne({ email: normalizedEmail });
 
     if (existingUser) {
       if (existingUser.isVerified) {
-        return res.status(400).json({
+        res.status(400).json({
           message: "User already exists",
         });
-      } else {
-        await User.deleteOne({ _id: existingUser._id });
+        return;
       }
+
+      await User.deleteOne({ _id: existingUser._id });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -39,7 +43,7 @@ export const registerUser = async (req: Request, res: Response) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
 
-    const user = await User.create({
+    await User.create({
       fullName,
       email: normalizedEmail,
       password: hashedPassword,
@@ -54,109 +58,99 @@ export const registerUser = async (req: Request, res: Response) => {
     //   `Hello ${fullName},<br><br>Your 6-digit registration confirmation passcode is:<br><b style="font-size: 24px; letter-spacing: 2px; color: #1e3a8a;">${otp}</b><br><br>This token will expire in 5 minutes.`,
     // );
 
-    return res.status(200).json({
+    res.status(200).json({
       message:
         "Registration pending. A 6-digit code has been dispatched to your email inbox.",
     });
-  } catch (error) {
-    if (error instanceof Error) {
-      res.status(500).json({ message: error.message });
-    } else {
-      res.status(500).json({
-        message: "Something went wrong",
-      });
-    }
-  }
-};
+  },
+);
 
-export const verifyOtp = async (req: Request, res: Response) => {
-  try {
-    const { email, otp } = req.body;
-    const normalizedEmail =
-      typeof email === "string" ? normalizeEmail(email) : email;
+export const verifyOtp = asyncHandler(async (req: Request, res: Response) => {
+  const { email, otp } = req.body;
 
-    if (!normalizedEmail || !otp) {
-      return res
-        .status(400)
-        .json({ message: "Email and confirmation code are required fields." });
-    }
+  const normalizedEmail =
+    typeof email === "string" ? normalizeEmail(email) : email;
 
-    const user = await User.findOne({ email: normalizedEmail });
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found." });
-    }
-
-    if (user.otp !== otp || !user.otpExpires || new Date() > user.otpExpires) {
-      return res
-        .status(400)
-        .json({ message: "Invalid or expired verification code." });
-    }
-    user.isVerified = true;
-    user.otp = null;
-    user.otpExpires = null;
-
-    user.set("createdAt", undefined);
-    await user.save();
-
-    return res.status(200).json({
-      message: "Account successfully verified! You are now logged in.",
-      ...generateAuthResponse(user),
+  if (!normalizedEmail || !otp) {
+    res.status(400).json({
+      message: "Email and confirmation code are required fields.",
     });
-  } catch (error) {
-    return res.status(500).json({ message: "Server verification error." });
+    return;
   }
-};
 
-export const loginUser = async (req: Request, res: Response) => {
-  try {
-    const { email, password } = req.body;
-    const normalizedEmail =
-      typeof email === "string" ? normalizeEmail(email) : email;
+  const user = await User.findOne({ email: normalizedEmail });
 
-    const user = await User.findOne({ email: normalizedEmail });
-
-    if (!user || !user.password) {
-      return res.status(400).json({
-        message: "Invalid credentials",
-      });
-    }
-
-    if (!user.isVerified) {
-      return res.status(400).json({
-        message: "email is not verified Register again.",
-      });
-    }
-
-    const isPasswordCorrect = await bcrypt.compare(password, user.password);
-
-    if (!isPasswordCorrect) {
-      return res.status(400).json({
-        message: "Invalid credentials",
-      });
-    }
-
-    res.status(200).json({
-      message: "Login successful",
-      ...generateAuthResponse(user),
+  if (!user) {
+    res.status(404).json({
+      message: "User not found.",
     });
-  } catch (error) {
-    if (error instanceof Error) {
-      res.status(500).json({ message: error.message });
-    } else {
-      res.status(500).json({
-        message: "Something went wrong",
-      });
-    }
+    return;
   }
-};
+
+  if (user.otp !== otp || !user.otpExpires || new Date() > user.otpExpires) {
+    res.status(400).json({
+      message: "Invalid or expired verification code.",
+    });
+    return;
+  }
+
+  user.isVerified = true;
+  user.otp = null;
+  user.otpExpires = null;
+
+  user.set("createdAt", undefined);
+
+  await user.save();
+
+  res.status(200).json({
+    message: "Account successfully verified! You are now logged in.",
+    ...generateAuthResponse(user),
+  });
+});
+
+export const loginUser = asyncHandler(async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+
+  const normalizedEmail =
+    typeof email === "string" ? normalizeEmail(email) : email;
+
+  const user = await User.findOne({ email: normalizedEmail });
+
+  if (!user || !user.password) {
+    res.status(400).json({
+      message: "Invalid credentials",
+    });
+    return;
+  }
+
+  if (!user.isVerified) {
+    res.status(400).json({
+      message: "Email is not verified. Register again.",
+    });
+    return;
+  }
+
+  const isPasswordCorrect = await bcrypt.compare(password, user.password);
+
+  if (!isPasswordCorrect) {
+    res.status(400).json({
+      message: "Invalid credentials",
+    });
+    return;
+  }
+
+  res.status(200).json({
+    message: "Login successful",
+    ...generateAuthResponse(user),
+  });
+});
 
 export const getCurrentUser = async (req: AuthRequest, res: Response) => {
   res.status(200).json(req.user);
 };
 
-export const googleLogin = async (req: Request, res: Response) => {
-  try {
+export const googleLogin = asyncHandler(
+  async (req: Request, res: Response): Promise<void> => {
     const { credential } = req.body;
 
     const ticket = await client.verifyIdToken({
@@ -167,17 +161,16 @@ export const googleLogin = async (req: Request, res: Response) => {
     const payload = ticket.getPayload();
 
     if (!payload) {
-      return res.status(400).json({
-        message: "Invalid Google token",
-      });
+      throw new Error("Invalid Google token");
     }
 
-    const { email, sub: googleId, name, picture } = payload;
+    const { email, sub: googleId, name } = payload;
+
     const normalizedEmail =
       typeof email === "string" ? normalizeEmail(email) : email;
 
     if (!normalizedEmail) {
-      return res.status(400).json({ message: "Invalid Google token" });
+      throw new Error("Invalid Google token");
     }
 
     let user = await User.findOne({ email: normalizedEmail });
@@ -195,8 +188,5 @@ export const googleLogin = async (req: Request, res: Response) => {
       message: "User registered successfully",
       ...generateAuthResponse(user),
     });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "Google login failed" });
-  }
-};
+  },
+);
