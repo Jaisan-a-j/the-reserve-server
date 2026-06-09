@@ -1,8 +1,9 @@
 import { Request, Response } from "express";
+import asyncHandler from "express-async-handler";
 import { Food } from "../models/Food";
 
-export const createFoodItem = async (req: Request, res: Response) => {
-  try {
+export const createFoodItem = asyncHandler(
+  async (req: Request, res: Response) => {
     const { title, description, price, category, dietary, spice, image } =
       req.body;
 
@@ -15,19 +16,21 @@ export const createFoodItem = async (req: Request, res: Response) => {
       !spice ||
       !image
     ) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message:
           "All fields are required! Please check title, description, price, category, dietary, spice, and image.",
       });
+      return;
     }
 
     if (!Array.isArray(dietary)) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message:
           "The 'dietary' field must be an array of strings (e.g., ['Vegan', 'Vegetarian']).",
       });
+      return;
     }
 
     const newFoodItem = new Food({
@@ -42,33 +45,21 @@ export const createFoodItem = async (req: Request, res: Response) => {
 
     await newFoodItem.save();
 
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       message: "🎉 New food item added to the menu successfully!",
       data: newFoodItem,
     });
-  } catch (error) {
-    console.error("❌ Error adding menu item:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error while saving the menu item.",
-    });
-  }
-};
+  },
+);
 
-export const getFoodItems = async (_req: Request, res: Response) => {
-  try {
+export const getFoodItems = asyncHandler(
+  async (_req: Request, res: Response) => {
     const foodItems = await Food.find().sort({ _id: -1 });
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       data: foodItems,
     });
-  } catch (error) {
-    console.error("Error fetching menu items:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error while fetching menu items.",
-    });
-  }
-};
+  },
+);

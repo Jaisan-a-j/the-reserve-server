@@ -1,89 +1,35 @@
 import type { Response } from "express";
+import asyncHandler from "express-async-handler";
 import type { Types } from "mongoose";
 import type { AuthRequest } from "../middleware/authMiddleware";
 import { Food } from "../models/Food";
 import Order from "../models/Order";
 import User from "../models/User";
 import { sendEmail } from "../utils/sendEmail";
-
-type OrderRequestBody = {
-  contact?: {
-    fullName?: string;
-    email?: string;
-    phone?: string;
-  };
-  fulfillment?: "delivery" | "pickup";
-  deliveryAddress?: {
-    address?: string;
-    city?: string;
-    zipCode?: string;
-  };
-  paymentMethod?: "card" | "counter";
-};
-
-type CartFood = {
-  _id: Types.ObjectId;
-  title: string;
-  price: number;
-  image: string;
-};
+import { buildOrderEmail } from "../utils/buildOrderEmail";
+import { roundCurrency, formatCurrency as fixCurrency } from "../utils/order";
+import { calculateOrderPricing } from "../utils/orderPricing";
+import { type OrderRequestBody, CartFood } from "../types/foodTypes";
+import { validateOrderRequest } from "../utils/validateOrderRequest";
 
 type PopulatedCartItem = {
   food: CartFood;
   quantity: number;
 };
 
-const roundCurrency = (value: number) => Math.round(value * 100) / 100;
-
-const fixCurrency = (value: number) => `$${value.toFixed(2)}`;
-
-const buildOrderEmail = (order: {
-  _id: Types.ObjectId;
-  items: { title: string; price: number; quantity: number }[];
-  contact: { fullName: string };
-  fulfillment: "delivery" | "pickup";
-  paymentMethod: "card" | "counter";
-  subtotal: number;
-  serviceFee: number;
-  deliveryFee: number;
-  tax: number;
-  total: number;
-}) => {
-  const eta = order.fulfillment === "delivery" ? "35-45 min" : "20-25 min";
-  const orderId = order._id.toString().slice(-6).toUpperCase();
-  const itemRows = order.items
-    .map(
-      (item) =>
-        `${item.title} x ${item.quantity} - ${fixCurrency(
-          item.price * item.quantity,
-        )}`,
-    )
-    .join("<br>");
-
-  return `
-    Hello ${order.contact.fullName},<br><br>
-    Thank you for ordering from The Reserve. Your order has been received.<br><br>
-    <strong>Order ID:</strong> ${orderId}<br>
-    <strong>Method:</strong> ${order.fulfillment}<br>
-    <strong>Payment:</strong> ${
-      order.paymentMethod === "card" ? "Card" : "Pay at counter"
-    }<br>
-    <strong>Estimated time:</strong> ${eta}<br><br>
-    <strong>Items</strong><br>
-    ${itemRows}<br><br>
-    <strong>Subtotal:</strong> ${fixCurrency(order.subtotal)}<br>
-    <strong>Service fee:</strong> ${fixCurrency(order.serviceFee)}<br>
-    <strong>Delivery fee:</strong> ${fixCurrency(order.deliveryFee)}<br>
-    <strong>Tax:</strong> ${fixCurrency(order.tax)}<br>
-    <strong>Total:</strong> ${fixCurrency(order.total)}<br><br>
-    We will notify you if anything changes.
-  `;
-};
-
-export const createOrder = async (req: AuthRequest, res: Response) => {
-  try {
+export const createOrder = asyncHandler(
+  async (req: AuthRequest, res: Response) => {
     if (!req.user?._id) {
-      return res.status(401).json({ message: "Not authorized" });
+      res.status(401).json({ message: "Not authorized" });
+      return;
+    }
+
+    const validationError = validateOrderRequest(req.body as OrderRequestBody);
+    if (validationError) {
+      res
+        .status(validationError.status)
+        .json({ message: validationError.message });
+      return;
     }
 
     const {
@@ -93,31 +39,6 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
       paymentMethod = "card",
     } = req.body as OrderRequestBody;
 
-    if (!contact?.fullName || !contact.email || !contact.phone) {
-      return res.status(400).json({
-        message: "Full name, email and phone are required.",
-      });
-    }
-
-    if (!["delivery", "pickup"].includes(fulfillment)) {
-      return res.status(400).json({ message: "Invalid fulfillment method." });
-    }
-
-    if (!["card", "counter"].includes(paymentMethod)) {
-      return res.status(400).json({ message: "Invalid payment method." });
-    }
-
-    if (
-      fulfillment === "delivery" &&
-      (!deliveryAddress?.address ||
-        !deliveryAddress.city ||
-        !deliveryAddress.zipCode)
-    ) {
-      return res.status(400).json({
-        message: "Delivery address, city and ZIP code are required.",
-      });
-    }
-
     const user = await User.findById(req.user._id).populate<{
       cart: PopulatedCartItem[];
     }>({
@@ -126,11 +47,13 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
     });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found." });
+      res.status(404).json({ message: "User not found." });
+      return;
     }
 
     if (user.cart.length === 0) {
-      return res.status(400).json({ message: "Your cart is empty." });
+      res.status(400).json({ message: "Your cart is empty." });
+      return;
     }
 
     const items = user.cart.map((item) => ({
@@ -141,13 +64,8 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
       quantity: item.quantity,
     }));
 
-    const subtotal = roundCurrency(
-      items.reduce((sum, item) => sum + item.price * item.quantity, 0),
-    );
-    const serviceFee = subtotal > 0 ? 4.99 : 0;
-    const deliveryFee = fulfillment === "delivery" && subtotal > 0 ? 6.5 : 0;
-    const tax = roundCurrency(subtotal * 0.05);
-    const total = roundCurrency(subtotal + serviceFee + deliveryFee + tax);
+    const { subtotal, serviceFee, deliveryFee, tax, total } =
+      calculateOrderPricing(items, fulfillment);
 
     const order = await Order.create({
       user: user._id,
@@ -185,7 +103,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
       console.error("Order email failed:", emailMessage);
     }
 
-    return res.status(201).json({
+    res.status(201).json({
       message: "Order placed successfully.",
       order,
       cart: [],
@@ -194,31 +112,20 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
         message: emailSent ? "Confirmation email sent." : emailMessage,
       },
     });
-  } catch (error) {
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
+  },
+);
 
-    return res.status(500).json({ message: "Order could not be created." });
-  }
-};
-
-export const getMyOrders = async (req: AuthRequest, res: Response) => {
-  try {
+export const getMyOrders = asyncHandler(
+  async (req: AuthRequest, res: Response) => {
     if (!req.user?._id) {
-      return res.status(401).json({ message: "Not authorized" });
+      res.status(401).json({ message: "Not authorized" });
+      return;
     }
 
     const orders = await Order.find({ user: req.user._id }).sort({
       createdAt: -1,
     });
 
-    return res.status(200).json({ orders });
-  } catch (error) {
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
-
-    return res.status(500).json({ message: "Could not fetch orders." });
-  }
-};
+    res.status(200).json({ orders });
+  },
+);
