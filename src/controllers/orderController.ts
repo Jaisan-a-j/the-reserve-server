@@ -89,11 +89,11 @@ export const createOrder = asyncHandler(
     let emailMessage: string | undefined;
 
     try {
-      // await sendEmail(
-      //   contact.email,
-      //   "The Reserve Order Confirmation",
-      //   buildOrderEmail(order),
-      // );
+      await sendEmail(
+        contact.email,
+        "The Reserve Order Confirmation",
+        buildOrderEmail(order),
+      );
       emailSent = true;
     } catch (emailError) {
       emailMessage =
