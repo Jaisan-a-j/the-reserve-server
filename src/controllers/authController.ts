@@ -52,11 +52,11 @@ export const registerUser = asyncHandler(
       otpExpires,
     });
 
-    await sendEmail(
-      normalizedEmail,
-      "Verify Your Account Creation",
-      `Hello ${fullName},<br><br>Your 6-digit registration confirmation passcode is:<br><b style="font-size: 24px; letter-spacing: 2px; color: #1e3a8a;">${otp}</b><br><br>This token will expire in 5 minutes.`,
-    );
+    // await sendEmail(
+    //   normalizedEmail,
+    //   "Verify Your Account Creation",
+    //   `Hello ${fullName},<br><br>Your 6-digit registration confirmation passcode is:<br><b style="font-size: 24px; letter-spacing: 2px; color: #1e3a8a;">${otp}</b><br><br>This token will expire in 5 minutes.`,
+    // );
 
     res.status(200).json({
       message:
