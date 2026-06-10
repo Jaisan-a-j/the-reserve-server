@@ -1,10 +1,10 @@
 import type { Types } from "mongoose";
 
 export type OrderRequestBody = {
-  contact?: {
-    fullName?: string;
-    email?: string;
-    phone?: string;
+  contact: {
+    fullName: string;
+    email: string;
+    phone: string;
   };
   fulfillment?: "delivery" | "pickup";
   deliveryAddress?: {
