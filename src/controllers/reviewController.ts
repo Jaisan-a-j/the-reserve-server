@@ -26,6 +26,7 @@ export const createReview = asyncHandler(
 
     const review = await Review.create({
       userId: req.user._id,
+      userName: req.user.fullName,
       rating,
       comment: String(comment).trim(),
     });
