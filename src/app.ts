@@ -6,6 +6,7 @@ import foodRoutes from "./routes/foodRoutes";
 import cartRoutes from "./routes/cartRoute";
 import orderRoutes from "./routes/orderRoute";
 import chatRoutes from "./routes/chatRoute";
+import reviewRoutes from "./routes/reviewRoute";
 
 const app = express();
 
@@ -18,4 +19,5 @@ app.use("/api/food", foodRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/reviews", reviewRoutes);
 export default app;
