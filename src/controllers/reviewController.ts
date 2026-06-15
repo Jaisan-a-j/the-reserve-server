@@ -13,7 +13,9 @@ export const createReview = asyncHandler(
     const { rating, comment } = req.body;
 
     if (typeof rating !== "number" || rating < 1 || rating > 5) {
-      res.status(400).json({ message: "Rating must be a number between 1 and 5" });
+      res
+        .status(400)
+        .json({ message: "Rating must be a number between 1 and 5" });
       return;
     }
 
@@ -29,5 +31,12 @@ export const createReview = asyncHandler(
     });
 
     res.status(201).json({ review });
+  },
+);
+
+export const getReviews = asyncHandler(
+  async (_req: AuthRequest, res: Response) => {
+    const reviews = await Review.find().sort({ createdAt: -1 }).lean();
+    res.status(200).json({ reviews });
   },
 );
