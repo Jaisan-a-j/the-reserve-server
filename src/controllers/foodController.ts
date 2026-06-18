@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import { Food } from "../models/Food";
 import Order from "../models/Order";
+import { buildFoodFilter } from "../utils/foodFilters";
 
 const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
 
@@ -71,13 +72,61 @@ export const createFoodItem = asyncHandler(
   },
 );
 
-export const getFoodItems = asyncHandler(
-  async (_req: Request, res: Response) => {
-    const foodItems = await Food.find().sort({ _id: -1 });
+export const getFoodItems = asyncHandler(async (req: Request, res: Response) => {
+  const page = Number(req.query.page);
+  const limit = Number(req.query.limit);
+  const hasPagination = !Number.isNaN(page) && !Number.isNaN(limit);
+  const filter = buildFoodFilter(req.query);
+
+  if (hasPagination) {
+    const safePage = Math.max(page, 1);
+    const safeLimit = Math.max(limit, 1);
+    const skip = (safePage - 1) * safeLimit;
+
+    const [data, total] = await Promise.all([
+      Food.find(filter).sort({ createdAt: -1 }).skip(skip).limit(safeLimit),
+      Food.countDocuments(filter),
+    ]);
 
     res.status(200).json({
       success: true,
-      data: foodItems,
+      data,
+      pagination: {
+        page: safePage,
+        limit: safeLimit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / safeLimit)),
+      },
+    });
+    return;
+  }
+
+  const foodItems = await Food.find(filter).sort({ createdAt: -1 });
+
+  res.status(200).json({
+    success: true,
+    data: foodItems,
+  });
+});
+
+export const getFoodPriceRange = asyncHandler(
+  async (_req: Request, res: Response) => {
+    const [result] = await Food.aggregate([
+      {
+        $group: {
+          _id: null,
+          minPrice: { $min: "$price" },
+          maxPrice: { $max: "$price" },
+        },
+      },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        minPrice: result?.minPrice ?? 0,
+        maxPrice: result?.maxPrice ?? 100,
+      },
     });
   },
 );

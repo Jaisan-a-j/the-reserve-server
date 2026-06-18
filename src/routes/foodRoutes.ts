@@ -4,12 +4,14 @@ import {
   getBestSellers,
   getChefSpecials,
   getFoodItems,
+  getFoodPriceRange,
   getNewArrivals,
   getTrending,
 } from "../controllers/foodController";
 
 const router = express.Router();
 
+router.get("/price-range", getFoodPriceRange);
 router.get("/", getFoodItems);
 router.get("/best-sellers", getBestSellers);
 router.get("/chef-specials", getChefSpecials);
