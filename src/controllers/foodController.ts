@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import asyncHandler from "express-async-handler";
 import { Food } from "../models/Food";
+import Order from "../models/Order";
 
 export const createFoodItem = asyncHandler(
   async (req: Request, res: Response) => {
@@ -60,6 +61,37 @@ export const getFoodItems = asyncHandler(
     res.status(200).json({
       success: true,
       data: foodItems,
+    });
+  },
+);
+
+export const getBestSellers = asyncHandler(
+  async (_req: Request, res: Response) => {
+    const bestSellers = await Order.aggregate([
+      { $match: { status: { $ne: "cancelled" } } },
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: "$items.food",
+          totalQuantity: { $sum: "$items.quantity" },
+        },
+      },
+      { $sort: { totalQuantity: -1 } },
+      {
+        $lookup: {
+          from: "foods",
+          localField: "_id",
+          foreignField: "_id",
+          as: "food",
+        },
+      },
+      { $unwind: "$food" },
+      { $replaceRoot: { newRoot: "$food" } },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: bestSellers,
     });
   },
 );
