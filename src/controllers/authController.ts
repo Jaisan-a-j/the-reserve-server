@@ -6,8 +6,7 @@ import generateToken from "../utils/generateToken";
 import type { AuthRequest } from "../middleware/authMiddleware";
 import { OAuth2Client } from "google-auth-library";
 import { sendEmail } from "../utils/sendEmail";
-import { normalizeEmail } from "../utils/auth";
-import { generateAuthResponse } from "../utils/auth";
+import { normalizeEmail, formatUserResponse, generateAuthResponse } from "../utils/auth";
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export const registerUser = asyncHandler(
@@ -146,8 +145,43 @@ export const loginUser = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getCurrentUser = async (req: AuthRequest, res: Response) => {
-  res.status(200).json(req.user);
+  res.status(200).json(formatUserResponse(req.user));
 };
+
+export const updateUserProfile = asyncHandler(
+  async (req: AuthRequest, res: Response) => {
+    if (!req.user?._id) {
+      res.status(401).json({ message: "Not authorized" });
+      return;
+    }
+
+    const { address, city, pinCode } = req.body as {
+      address?: string;
+      city?: string;
+      pinCode?: string;
+    };
+
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    user.profile = {
+      address: typeof address === "string" ? address.trim() : "",
+      city: typeof city === "string" ? city.trim() : "",
+      pinCode: typeof pinCode === "string" ? pinCode.trim() : "",
+    };
+
+    await user.save();
+
+    res.status(200).json({
+      message: "Profile updated successfully",
+      user: formatUserResponse(user),
+    });
+  },
+);
 
 export const googleLogin = asyncHandler(async (req: Request, res: Response) => {
   const { credential } = req.body;
