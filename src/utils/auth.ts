@@ -9,13 +9,39 @@ export const generateOtp = () =>
 
 export const getOtpExpiry = () => new Date(Date.now() + 5 * 60 * 1000);
 
-export const generateAuthResponse = (user: any) => ({
-  token: generateToken(user._id.toString()),
-  user: {
-    id: user._id,
-    fullName: user.fullName,
-    email: user.email,
+export const formatUserResponse = (user: {
+  _id?: { toString: () => string };
+  id?: string;
+  fullName: string;
+  email: string;
+  profile?: {
+    address?: string;
+    city?: string;
+    pinCode?: string;
+  };
+}) => ({
+  _id: user._id?.toString() ?? user.id ?? "",
+  fullName: user.fullName,
+  email: user.email,
+  profile: {
+    address: user.profile?.address ?? "",
+    city: user.profile?.city ?? "",
+    pinCode: user.profile?.pinCode ?? "",
   },
+});
+
+export const generateAuthResponse = (user: {
+  _id: { toString: () => string };
+  fullName: string;
+  email: string;
+  profile?: {
+    address?: string;
+    city?: string;
+    pinCode?: string;
+  };
+}) => ({
+  token: generateToken(user._id.toString()),
+  user: formatUserResponse(user),
 });
 
 export const requireUser = (req: AuthRequest, res: Response) => {

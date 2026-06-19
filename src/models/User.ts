@@ -9,6 +9,11 @@ export interface IUser extends Document {
   isVerified: boolean;
   otp: string | null;
   otpExpires: Date | null;
+  profile: {
+    address: string;
+    city: string;
+    pinCode: string;
+  };
   cart: {
     food: mongoose.Types.ObjectId;
     quantity: number;
@@ -44,6 +49,11 @@ const userSchema = new Schema<IUser>(
     isVerified: { type: Boolean, default: false },
     otp: { type: String, default: null },
     otpExpires: { type: Date, default: null },
+    profile: {
+      address: { type: String, default: "" },
+      city: { type: String, default: "" },
+      pinCode: { type: String, default: "" },
+    },
     cart: [
       {
         food: {
