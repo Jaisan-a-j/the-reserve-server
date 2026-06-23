@@ -185,14 +185,7 @@ Chatbot Behavior Rules:
       completion.choices[0]?.message?.content ??
       "No response generated.",
   });
-  res.status(200).json({
-    success: true,
-    reply:
-      "Our assistant is temporarily unavailable. Please try again in a few moments.",
-  });
   } catch (error) {
-    console.error(error);
-
     res.status(500).json({
       success: false,
       message: "Failed to generate response",
